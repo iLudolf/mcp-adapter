@@ -1,22 +1,13 @@
 import {
   McpServer,
-  PromptCallback,
   ReadResourceCallback,
   ReadResourceTemplateCallback,
   ResourceMetadata,
   ResourceTemplate,
-  ToolCallback,
 } from "@modelcontextprotocol/sdk/server/mcp.js"
 import { Prompt as PromptType } from "@modelcontextprotocol/sdk/types.js"
 import { Inject, Injectable } from "@nestjs/common"
-import {
-  z,
-  ZodOptional,
-  ZodRawShape,
-  ZodString,
-  ZodType,
-  ZodTypeDef,
-} from "zod"
+import { z, ZodOptional, ZodString, ZodType, ZodTypeDef } from "zod"
 
 import { MCP_LOGGER, MCP_MODULE_OPTIONS } from "../constants"
 import {
@@ -93,14 +84,14 @@ export class McpService {
           list: undefined,
         })
 
-        return this.server.resource(
+        return this.server.registerResource(
           definition.name,
           template,
           metadata,
           handler as ReadResourceTemplateCallback
         )
       } else if (definition.uriTemplate instanceof ResourceTemplate) {
-        return this.server.resource(
+        return this.server.registerResource(
           definition.name,
           definition.uriTemplate,
           metadata,
@@ -111,7 +102,7 @@ export class McpService {
         return
       }
     } else {
-      return this.server.resource(
+      return this.server.registerResource(
         definition.name,
         definition.uri,
         metadata,
@@ -125,7 +116,7 @@ export class McpService {
    */
   registerPrompt(
     definition: PromptType,
-    handler: PromptCallback<undefined> | PromptCallback<PromptArgsRawShape>
+    handler: any
   ) {
     if (!definition.name) {
       this.logger.warn(
@@ -139,10 +130,10 @@ export class McpService {
     const description = definition.description || ""
 
     if (!definition.arguments || definition.arguments.length === 0) {
-      return this.server.prompt(
+      return (this.server.registerPrompt as any)(
         definition.name,
-        description,
-        handler as PromptCallback
+        { description },
+        handler
       )
     }
 
@@ -171,18 +162,17 @@ export class McpService {
         `Prompt "${definition.name}" arguments processing resulted in empty schema. Registering as no-argument prompt.`,
         this.loggerCtx
       )
-      return this.server.prompt(
+      return (this.server.registerPrompt as any)(
         definition.name,
-        description,
-        handler as PromptCallback
+        { description },
+        handler
       )
     }
 
-    return this.server.prompt(
+    return (this.server.registerPrompt as any)(
       definition.name,
-      description,
-      argsSchema,
-      handler as PromptCallback<PromptArgsRawShape>
+      { description, argsSchema },
+      handler
     )
   }
 
@@ -191,7 +181,7 @@ export class McpService {
    */
   registerTool(
     definition: ToolOptions,
-    handler: ToolCallback | ToolCallback<ZodRawShape>
+    handler: any
   ) {
     if (!definition || !definition.name) {
       this.logger.warn(
@@ -203,31 +193,17 @@ export class McpService {
 
     this.logger.info(`Registering tool: ${definition.name}`, this.loggerCtx)
 
-    const description = definition.description
-    const paramsSchema = definition.paramsSchema
+    const config: { description?: string; inputSchema?: typeof definition.paramsSchema } = {}
 
-    if (paramsSchema && Object.keys(paramsSchema).length > 0) {
-      const specificHandler = handler as ToolCallback<ZodRawShape>
-
-      if (description) {
-        return this.server.tool(
-          definition.name,
-          description,
-          paramsSchema,
-          specificHandler
-        )
-      } else {
-        this.server.tool(definition.name, paramsSchema, specificHandler)
-      }
-    } else {
-      const specificHandler = handler as ToolCallback
-
-      if (description) {
-        this.server.tool(definition.name, description, specificHandler)
-      } else {
-        this.server.tool(definition.name, specificHandler)
-      }
+    if (definition.description) {
+      config.description = definition.description
     }
+
+    if (definition.paramsSchema && Object.keys(definition.paramsSchema).length > 0) {
+      config.inputSchema = definition.paramsSchema
+    }
+
+    return (this.server.registerTool as any)(definition.name, config, handler)
   }
 
   private isTemplateResource(

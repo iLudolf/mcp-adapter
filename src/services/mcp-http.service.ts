@@ -6,6 +6,9 @@ import { MCP_LOGGER } from "../constants"
 import { McpLogger } from "../interfaces"
 import { McpService } from "./mcp.service"
 
+// Keep-alive interval in milliseconds (30 seconds)
+const KEEP_ALIVE_INTERVAL = 30000
+
 /**
  * Service responsible for handling HTTP/SSE communication for the MCP server.
  */
@@ -13,6 +16,7 @@ import { McpService } from "./mcp.service"
 export class McpHttpService {
   private readonly loggerCtx = "McpHttpService"
   private transports: { [sessionId: string]: SSEServerTransport } = {}
+  private keepAliveIntervals: { [sessionId: string]: NodeJS.Timeout } = {}
 
   constructor(
     private readonly mcpService: McpService,
@@ -32,8 +36,23 @@ export class McpHttpService {
 
     this.logger.info(`New SSE connection established: ${sessionId}`, this.loggerCtx)
 
+    // Start keep-alive interval to prevent body timeout
+    this.keepAliveIntervals[sessionId] = setInterval(() => {
+      if (!res.writableEnded) {
+        // SSE comment format - ignored by clients but keeps connection alive
+        res.write(": ping\n\n")
+      }
+    }, KEEP_ALIVE_INTERVAL)
+
     res.on("close", () => {
       this.logger.info(`SSE connection closed: ${sessionId}`, this.loggerCtx)
+
+      // Clear keep-alive interval
+      if (this.keepAliveIntervals[sessionId]) {
+        clearInterval(this.keepAliveIntervals[sessionId])
+        delete this.keepAliveIntervals[sessionId]
+      }
+
       delete this.transports[sessionId]
 
       transport

@@ -2,6 +2,14 @@
 
 NestJS module for Model Context Protocol (MCP) integration. Enables your NestJS application to act as an MCP server, exposing tools, resources, and prompts to AI assistants.
 
+## Features
+
+- 🔧 **Decorator-based API** - Use `@McpTool`, `@McpResource`, `@McpPrompt` decorators
+- 🚀 **Multiple transports** - STDIO, SSE, HTTP support
+- 🔄 **SSE Keep-alive** - Automatic ping to prevent connection timeouts
+- 📦 **NestJS integration** - Full support for dependency injection
+- 🔌 **Async configuration** - Use `forRootAsync` with ConfigService
+
 ## Installation
 
 ```bash
@@ -17,8 +25,17 @@ yarn add @iludolf/mcp-adapter
 Make sure you have these peer dependencies installed:
 
 ```bash
-npm install @modelcontextprotocol/sdk @nestjs/common @nestjs/core reflect-metadata rxjs zod
+npm install @modelcontextprotocol/sdk@^1.10.0 @nestjs/common @nestjs/core reflect-metadata rxjs zod
 ```
+
+| Package | Version |
+|---------|---------|
+| `@modelcontextprotocol/sdk` | `^1.10.0` |
+| `@nestjs/common` | `^10.0.0 \|\| ^11.0.0` |
+| `@nestjs/core` | `^10.0.0 \|\| ^11.0.0` |
+| `reflect-metadata` | `^0.1.13 \|\| ^0.2.0` |
+| `rxjs` | `^7.0.0` |
+| `zod` | `^3.0.0` |
 
 ## Quick Start
 
@@ -141,9 +158,15 @@ McpModule.forRootAsync({
 
 When using SSE or HTTP transport, the following endpoints are available:
 
-- `GET /{basePath}/sse` - SSE connection endpoint
-- `POST /{basePath}/messages` - Message handling endpoint  
-- `GET /{basePath}/health` - Health check endpoint
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/{basePath}/sse` | GET | SSE connection endpoint |
+| `/{basePath}/messages` | POST | Message handling endpoint |
+| `/{basePath}/health` | GET | Health check endpoint |
+
+### SSE Keep-alive
+
+SSE connections automatically send keep-alive pings every 30 seconds to prevent timeout errors (`Body Timeout Error`). This is handled transparently - no configuration needed.
 
 ## Custom Logger
 
@@ -162,6 +185,12 @@ McpModule.forRoot({
   logger: new MyLogger(),
 })
 ```
+
+## Compatibility
+
+- **MCP SDK**: Uses the new `registerTool`, `registerPrompt`, `registerResource` API (SDK 1.10.0+)
+- **NestJS**: Compatible with v10 and v11
+- **Node.js**: Requires Node.js 18+
 
 ## License
 
